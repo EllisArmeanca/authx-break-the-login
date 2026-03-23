@@ -98,3 +98,65 @@ def logout():
 @auth_bp.route("/")
 def index():
     return redirect(url_for("auth.login"))
+
+@auth_bp.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        user = cursor.execute(
+            "SELECT * FROM users WHERE email = ?",
+            (email,)
+        ).fetchone()
+
+        if not user:
+            conn.close()
+            return "User does not exist", 404
+
+        reset_token = f"reset-{user['id']}"
+
+        cursor.execute(
+            "UPDATE users SET reset_token = ? WHERE id = ?",
+            (reset_token, user["id"])
+        )
+
+        conn.commit()
+        conn.close()
+
+        return f"Reset link: http://127.0.0.1:5000/reset-password/{reset_token}"
+
+    return render_template("forgot_password.html")
+
+
+@auth_bp.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    user = cursor.execute(
+        "SELECT * FROM users WHERE reset_token = ?",
+        (token,)
+    ).fetchone()
+
+    if not user:
+        conn.close()
+        return "Invalid reset token", 400
+
+    if request.method == "POST":
+        new_password = request.form.get("password", "").strip()
+
+        cursor.execute(
+            "UPDATE users SET password = ? WHERE id = ?",
+            (new_password, user["id"])
+        )
+
+        conn.commit()
+        conn.close()
+
+        return redirect(url_for("auth.login"))
+
+    conn.close()
+    return render_template("reset_password.html", token=token)

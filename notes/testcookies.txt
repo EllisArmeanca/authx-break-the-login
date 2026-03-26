@@ -1,0 +1,3 @@
+session:".eJyrVirKz0lVslJy9HP0iQwOUdJRKi1OLYpPzU3MzAEKp-bkZBYnFuWaOaSDRPSS83NhSjJTlKwMawG-bBWp.acUwMQ.Dhvy3bXcaE2gKJc-5DpogvsxfUY"
+
+curl -i http://127.0.0.1:5000/dashboard -H "Cookie: .eJyrVirKz0lVslJy9HP0iQwOUdJRKi1OLYpPzU3MzAEKp-bkZBYnFuWaOaSDRPSS83NhSjJTlKwMawG-bBWp.acUwMQ.Dhvy3bXcaE2gKJc-5DpogvsxfUY"

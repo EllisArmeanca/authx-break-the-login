@@ -13,7 +13,7 @@ def register():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 🔐 verificăm dacă există deja manager (folosit și pentru HTML)
+    #  verificăm dacă există deja manager (folosit și pentru HTML)
     existing_manager = cursor.execute(
         "SELECT id FROM users WHERE role = 'MANAGER'"
     ).fetchone()
@@ -23,7 +23,9 @@ def register():
         password = request.form.get("password", "").strip()
         role = request.form.get("role", "ANALYST").strip()
 
-        # 🔐 password policy
+        #  FIX password policy
+        # verific parola inainte de creare cont
+        # nu accept parole prea simple
         if not is_strong_password(password):
             conn.close()
             write_audit_log(None, "REGISTER_WEAK_PASSWORD", "auth", email)
@@ -39,13 +41,13 @@ def register():
             write_audit_log(existing_user["id"], "REGISTER_DUPLICATE_EMAIL", "auth", email)
             return "Registration failed", 400
 
-        # 🔐 blocare creare manager dacă există deja
+        # blocare creare manager dacă există deja
         if role == "MANAGER" and existing_manager:
             conn.close()
             write_audit_log(None, "REGISTER_MANAGER_BLOCKED", "auth", email)
             return "Manager account already exists", 403
 
-        password_hash = generate_password_hash(password)
+        password_hash = generate_password_hash(password) # FIX PASSWORD HASH SCRYPT; nu stochez parola in clar, ci hashul
 
         cursor.execute(
             """
@@ -87,20 +89,20 @@ def login():
         if not user:
             conn.close()
             write_audit_log(None, "LOGIN_FAILED_NO_USER", "auth", email)
-            return "Invalid credentials", 401
+            return "Invalid credentials", 401 # fix user enum
 
-        #  brute force lock check
+        # FIX brute force lock check
         if user["locked_until"]:
             locked_until = datetime.fromisoformat(user["locked_until"])
-            if now < locked_until:
+            if now < locked_until: # verific daca perioada de blocare a expirat
                 conn.close()
                 write_audit_log(user["id"], "LOGIN_BLOCKED", "auth", str(user["id"]))
-                return "Invalid credentials", 401
+                return "Invalid credentials", 401 # fix user enum
 
-        #  password check
-        if not check_password_hash(user["password_hash"], password):
+        #  password check #
+        if not check_password_hash(user["password_hash"], password): # compar parola introdusa cu hashul existent
             attempts = user["failed_login_attempts"] + 1
-
+            #se trateaza brute force, 5 min ban dupa 5 esuari
             lock_until = None
             if attempts >= 5:
                 lock_until = (now + timedelta(minutes=5)).isoformat()
@@ -123,14 +125,16 @@ def login():
             (user["id"],)
         )
 
-        session_token = secrets.token_urlsafe(32)
+        # FIX SESSION COOKIES
+
+        session_token = secrets.token_urlsafe(32) # la login se genereaza un token nou de sesiune
 
         cursor.execute(
             "UPDATE users SET failed_login_attempts = 0, locked_until = NULL, session_token = ? WHERE id = ?",
             (session_token, user["id"])
-        )
+        ) #tokenul este salvat in baza de darte
 
-        session.clear()
+        session.clear() # sesiunea veche e curatata si se creeaza una noua
         session.permanent = True
         session["user_id"] = user["id"]
         session["user_email"] = user["email"]
@@ -163,7 +167,7 @@ def dashboard():
         (session["user_id"],)
     ).fetchone()
 
-    if not user or not session.get("session_token") or session.get("session_token") != user["session_token"]:
+    if not user or not session.get("session_token") or session.get("session_token") != user["session_token"]: # in dashboard sesiunea este verificata cu tokenul dinDB
         conn.close()
         session.clear()
         return redirect(url_for("auth.login"))
@@ -263,8 +267,8 @@ def dashboard():
         user_search=user_search
     )
 
-def is_valid_session():
-    if "user_id" not in session:
+def is_valid_session(): # functie seaparat a pentru validare
+    if "user_id" not in session: # verific daca exista un user autentificat in sesiune
         return False
 
     conn = get_db_connection()
@@ -279,6 +283,8 @@ def is_valid_session():
 
     if not user:
         return False
+    
+    # compar tokenul din sesiune cu cel salvat in baza de date
 
     if not session.get("session_token"):
         return False
@@ -489,7 +495,7 @@ def logout():
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "UPDATE users SET session_token = NULL WHERE id = ?",
+            "UPDATE users SET session_token = NULL WHERE id = ?", # la logout tokenul este invalidate
             (user_id,)
         )
         conn.commit()
@@ -521,12 +527,13 @@ def forgot_password():
         if not user:
             conn.close()
             write_audit_log(None, "PASSWORD_RESET_REQUEST_UNKNOWN_EMAIL", "auth", email)
-            return "If the account exists, a reset link was sent."
+            return "If the account exists, a reset link was sent." #fix user enum
 
-        raw_token = secrets.token_urlsafe(32)
-        token_hash = generate_password_hash(raw_token)
+        raw_token = secrets.token_urlsafe(32) # genereare token securizat pt resetare parola
+        token_hash = generate_password_hash(raw_token) # nici tokenul de resetare nu este stocat in clar
 
-        expires_at = (datetime.now() + timedelta(minutes=15)).isoformat()
+
+        expires_at = (datetime.now() + timedelta(minutes=15)).isoformat() # tokenul are expirare 15 muin
 
         cursor.execute(
             """
@@ -534,7 +541,7 @@ def forgot_password():
             VALUES (?, ?, ?, ?)
             """,
             (user["id"], token_hash, expires_at, datetime.now().isoformat())
-        )
+        ) # tokenul este salvat in DB pt a se tine evidenta
 
         conn.commit()
         conn.close()
@@ -569,9 +576,9 @@ def reset_password(token):
 
         return "Invalid or expired token", 400
 
-    if datetime.now() > datetime.fromisoformat(valid_token["expires_at"]):
+    if datetime.now() > datetime.fromisoformat(valid_token["expires_at"]): # se verifica daca tokenul e valid
         cursor.execute(
-            "UPDATE password_reset_tokens SET used = 1 WHERE id = ?",
+            "UPDATE password_reset_tokens SET used = 1 WHERE id = ?", # token marcat ca folosit
             (valid_token["id"],)
         )
         conn.commit()
@@ -587,8 +594,10 @@ def reset_password(token):
             conn.close()
             write_audit_log(valid_token["user_id"], "PASSWORD_RESET_WEAK_PASSWORD", "auth", str(valid_token["user_id"]))
             return "Password does not meet security requirements", 400
+ 
+        new_hash = generate_password_hash(new_password) # verific tokenul primit fata de hash-ul salvat
+                                                        # noua parola este hash-uita inainte sa fie salvata
 
-        new_hash = generate_password_hash(new_password)
 
         cursor.execute(
             "UPDATE users SET password_hash = ? WHERE id = ?",
@@ -609,6 +618,12 @@ def reset_password(token):
     conn.close()
     return render_template("reset_password.html", token=token)
 
+
+
+# verific parola inainte de creare cont
+# nu accept parole prea simple
+#cifra, upper, lower
+# verific regulile minime pentru o parola mai greu de ghicit
 
 def is_strong_password(password):
     if len(password) < 8:

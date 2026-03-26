@@ -1,0 +1,95 @@
+<h1>Edit Ticket</h1>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f5f5f5;
+        margin: 40px;
+    }
+
+    form {
+        background: white;
+        padding: 20px 25px;
+        border-radius: 8px;
+        max-width: 500px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    label {
+        font-weight: bold;
+    }
+
+    input, textarea, select {
+        width: 100%;
+        padding: 8px;
+        margin-top: 5px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+    }
+
+    textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    button {
+        margin-top: 10px;
+        padding: 10px;
+        width: 100%;
+        background-color: #007BFF;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background-color: #0056b3;
+    }
+
+    a {
+        display: inline-block;
+        margin-top: 15px;
+        text-decoration: none;
+        color: #007BFF;
+    }
+
+    a:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<form method="POST">
+    <label>Title</label><br>
+    <input type="text" name="title" value="{{ ticket['title'] }}"><br><br>
+
+    <label>Description</label><br>
+    <textarea name="description">{{ ticket["description"] }}</textarea><br><br>
+
+    <label>Severity</label><br>
+    <select name="severity">
+        <option value="LOW" {% if ticket["severity"] == "LOW" %}selected{% endif %}>LOW</option>
+        <option value="MED" {% if ticket["severity"] == "MED" %}selected{% endif %}>MED</option>
+        <option value="HIGH" {% if ticket["severity"] == "HIGH" %}selected{% endif %}>HIGH</option>
+    </select><br><br>
+
+    <label>Status</label><br>
+    <select name="status">
+        <option value="OPEN" {% if ticket["status"] == "OPEN" %}selected{% endif %}>OPEN</option>
+        <option value="IN_PROGRESS" {% if ticket["status"] == "IN_PROGRESS" %}selected{% endif %}>IN_PROGRESS</option>
+        <option value="RESOLVED" {% if ticket["status"] == "RESOLVED" %}selected{% endif %}>RESOLVED</option>
+    </select><br><br>
+
+    <label>Owner</label><br>
+    <select name="owner_id">
+        {% for user in analysts %}
+            <option value="{{ user['id'] }}" {% if user['id'] == ticket['owner_id'] %}selected{% endif %}>
+                {{ user["email"] }} ({{ user["role"] }})
+            </option>
+        {% endfor %}
+    </select><br><br>
+
+    <button type="submit">Save changes</button>
+</form>
+
+<p><a href="{{ url_for('auth.dashboard') }}">Back to dashboard</a></p>

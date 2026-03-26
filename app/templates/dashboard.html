@@ -3,14 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <title>Dashboard - AuthX</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 40px;
+        }
+
+        h1, h2, h3 {
+            margin-top: 20px;
+        }
+
+        form {
+            margin: 10px 0 20px 0;
+        }
+
+        input {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            width: 250px;
+        }
+
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            background: white;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        a {
+            text-decoration: none;
+            color: #007BFF;
+            margin-left: 5px;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
     <h1>Dashboard</h1>
 
-    <p>Logged in as: {{ email }}</p>
-    <p>Role: {{ role }}</p>
+<p>Email: {{ email }}</p>
+<p>Role: {{ role }}</p>
+
+<p><a href="{{ url_for('auth.logout') }}">Logout</a></p>
+
+{% if role == "MANAGER" %}
+    <h2>Manager actions</h2>
+    <p><a href="{{ url_for('auth.create_ticket') }}">Create ticket</a></p>
+
+    <h3>Search users</h3>
+    <form method="GET" action="{{ url_for('auth.dashboard') }}">
+        <input type="text" name="user_search" value="{{ user_search }}" placeholder="Search users by email">
+        <button type="submit">Search users</button>
+    </form>
+
+    <h3>Users</h3>
+    <ul>
+        {% for user in users %}
+            <li>
+                ID: {{ user["id"] }} |
+                {{ user["email"] }} |
+                Role: {{ user["role"] }}
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+<h3>Search tickets</h3>
+<form method="GET" action="{{ url_for('auth.dashboard') }}">
+    <input type="text" name="ticket_search" value="{{ ticket_search }}" placeholder="Search tickets">
+    <button type="submit">Search tickets</button>
+</form>
+
+<h3>
+    {% if role == "MANAGER" %}
+        All tickets
+    {% else %}
+        My tickets
+    {% endif %}
+</h3>
+
+<ul>
+    {% for ticket in tickets %}
+        <li>
+            <strong>{{ ticket["title"] }}</strong>
+            | Owner: {{ ticket["owner_email"] }}
+            | Severity: {{ ticket["severity"] }}
+            | Status: {{ ticket["status"] }}
+            | <a href="{{ url_for('auth.view_ticket', ticket_id=ticket['id']) }}">View</a>
+
+            {% if role == "MANAGER" %}
+                | <a href="{{ url_for('auth.edit_ticket', ticket_id=ticket['id']) }}">Edit</a>
+            {% endif %}
+        </li>
+    {% else %}
+        <li>No tickets found.</li>
+    {% endfor %}
+</ul>
 
     <p><a href="/logout">Logout</a></p>
 </body>
 </html>
-

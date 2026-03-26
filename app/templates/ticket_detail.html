@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ticket Details</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 40px;
+        }
+
+        .container {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            max-width: 600px;
+            margin: auto;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        p {
+            margin: 8px 0;
+        }
+
+        strong {
+            color: #333;
+        }
+
+        a {
+            display: inline-block;
+            margin-top: 15px;
+            text-decoration: none;
+            color: #007BFF;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .actions {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Ticket Details</h1>
+
+    <p><strong>Title:</strong> {{ ticket["title"] }}</p>
+    <p><strong>Description:</strong> {{ ticket["description"] }}</p>
+    <p><strong>Severity:</strong> {{ ticket["severity"] }}</p>
+    <p><strong>Status:</strong> {{ ticket["status"] }}</p>
+    <p><strong>Owner:</strong> {{ ticket["owner_email"] }}</p>
+    <p><strong>Created at:</strong> {{ ticket["created_at"] }}</p>
+    <p><strong>Updated at:</strong> {{ ticket["updated_at"] }}</p>
+
+    <div class="actions">
+        {% if session.get("role") == "MANAGER" %}
+            <p><a href="{{ url_for('auth.edit_ticket', ticket_id=ticket['id']) }}">Edit ticket</a></p>
+        {% endif %}
+
+        <p><a href="{{ url_for('auth.dashboard') }}">← Back to dashboard</a></p>
+    </div>
+</div>
+
+</body>
+</html>

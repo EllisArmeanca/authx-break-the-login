@@ -10,10 +10,19 @@ passwords = [
     "password",
     "qwerty",
     "admin",
-    "ellis123"
+    "ellis123",
+    "admin",
+    "admin",
+    "admin",
+    "admin"
+
 ]
 
+attempt = 1
+
 for password in passwords:
+    print(f"Attempt #{attempt}")
+    attempt += 1
     response = requests.post(login_url, data={
         "email": email,
         "password": password
@@ -22,11 +31,14 @@ for password in passwords:
     print("Trying password:", password)
     print("Status code:", response.status_code)
 
-    if "Wrong password" in response.text:
-        print("Result: wrong password")
-    elif response.status_code == 302:
+    if response.status_code == 302:
         print("Result: login success")
+
+    elif "Invalid credentials" in response.text:
+        print("Result: invalid credentials")
+
     else:
-        print("Result:", response.text)
+        print("Result:", response.text.strip())
+
 
     print("-" * 40)

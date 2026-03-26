@@ -263,11 +263,35 @@ def dashboard():
         user_search=user_search
     )
 
+def is_valid_session():
+    if "user_id" not in session:
+        return False
 
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    user = cursor.execute(
+        "SELECT session_token FROM users WHERE id = ?",
+        (session["user_id"],)
+    ).fetchone()
+
+    conn.close()
+
+    if not user:
+        return False
+
+    if not session.get("session_token"):
+        return False
+
+    if session.get("session_token") != user["session_token"]:
+        return False
+
+    return True
 
 @auth_bp.route("/tickets/create", methods=["GET", "POST"])
 def create_ticket():
-    if "user_id" not in session:
+    if not is_valid_session():
+        session.clear()
         return redirect(url_for("auth.login"))
 
     if not is_manager():
@@ -336,7 +360,8 @@ def create_ticket():
 
 @auth_bp.route("/tickets/<int:ticket_id>/edit", methods=["GET", "POST"])
 def edit_ticket(ticket_id):
-    if "user_id" not in session:
+    if not is_valid_session():
+        session.clear()
         return redirect(url_for("auth.login"))
 
     if not is_manager():
@@ -410,6 +435,51 @@ def edit_ticket(ticket_id):
 
     conn.close()
     return render_template("edit_ticket.html", ticket=ticket, analysts=analysts)
+
+@auth_bp.route("/tickets/<int:ticket_id>")
+def view_ticket(ticket_id):
+    if "user_id" not in session:
+        return redirect(url_for("auth.login"))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    user = cursor.execute(
+        "SELECT session_token FROM users WHERE id = ?",
+        (session["user_id"],)
+    ).fetchone()
+
+    if not user or not session.get("session_token") or session.get("session_token") != user["session_token"]:
+        conn.close()
+        session.clear()
+        return redirect(url_for("auth.login"))
+
+    ticket = cursor.execute(
+        """
+        SELECT tickets.*, users.email AS owner_email
+        FROM tickets
+        JOIN users ON tickets.owner_id = users.id
+        WHERE tickets.id = ?
+        """,
+        (ticket_id,)
+    ).fetchone()
+
+    if not ticket:
+        conn.close()
+        return "Ticket not found", 404
+
+    user_id = session["user_id"]
+    role = session.get("role")
+
+    if role != "MANAGER" and ticket["owner_id"] != user_id:
+        conn.close()
+        write_audit_log(user_id, "UNAUTHORIZED_TICKET_ACCESS", "ticket", str(ticket_id), ticket_id)
+        return "Forbidden", 403
+
+    conn.close()
+    write_audit_log(user_id, "VIEW_TICKET", "ticket", str(ticket_id), ticket_id)
+
+    return render_template("ticket_detail.html", ticket=ticket)
 
 @auth_bp.route("/logout")
 def logout():
